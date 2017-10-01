@@ -15,7 +15,6 @@ body, html {
 
 .header {
   width: 100%;
-  height: 10%;
 
 }
 .score {
@@ -50,7 +49,7 @@ footer {
    bottom:0;
    color:#ff0000;
    background-color: #7a1b1b;
-   
+
    text-align: center;
    color:#ddd;
    width: 100%
