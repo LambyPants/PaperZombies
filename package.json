@@ -1,0 +1,17 @@
+{
+  "name": "paperzombies",
+  "version": "1.0.0",
+  "description": "A zombie survival game made with paper.js",
+  "main": "paper-full.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "paper",
+    "js",
+    "zombies",
+    "game"
+  ],
+  "author": "Ryan Lambert",
+  "license": "ISC"
+}

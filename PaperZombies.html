@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Paper Zombies</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css?family=Creepster" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Exo:400" rel="stylesheet">
+    <script type="text/javascript" src="paper-full.js">
+
+    </script>
+
+
+
+    <script type="text/paperscript" canvas="myCanvas">
+
+//Welcome to PaperZombies! As a Paper.js drawing experiment, no outside SVG images were used, and every shape is drawn in project
+
+//Global variables used by entire game
+  var gameState = {
+    gameOver: false,
+    carMode: false,
+    carSpawned: false,
+    playerSpawned: true,
+    maxPoint: new Point(view.size.width, view.size.height),
+    curZombieCount: 0,
+    maxZombies: 5,
+    zombieSpeed: 0,
+    maxZombieSpeed: 2,
+    pathArrays: {
+      arrayOfZombies: [],
+      arrayOfBullets: [],
+      arrayOfBloodSplatters: [],
+      arrayOfGasTanks: [],
+      groupOfZombieGuts: new Group()
+    },
+    globalPositions: {
+      playerPosition: view.center,
+      carPosition: view.center,
+    },
+    carSpeed: "",
+    center: view.center,
+    score: 0,
+    gasTanksCollected: 0
+  }
+
+
+    //paperJS event functions
+    onMouseMove = function(event) {
+      if(!gameState.carMode && !gameState.gameOver){
+          Player.rotate(event);
+      }}
+      onMouseDown = function(event) {
+        if(!gameState.carMode && !gameState.gameOver){
+          Player.fire(event);
+      }
+    }
+
+    function onFrame() {
+
+      if (Key.isDown('a')){
+        if(!gameState.carMode){Player.left()} else {Car.left()}};
+
+      if (Key.isDown('d')){
+        if(!gameState.carMode){Player.right()} else {Car.right()}};
+
+      if (Key.isDown('w')){
+        if(!gameState.carMode){Player.forward()} else {Car.forward()}};
+
+      if (Key.isDown('s')){
+        if(!gameState.carMode){Player.reverse()} else {Car.reverse()}};
+          modifyGameState();
+          if(gameState.carMode){
+          Car.draw();
+        }
+          Zombies.moveZombies();
+          if(!gameState.carMode){
+          Player.updatePlayerPositionGlobally();
+          detectBulletHit();
+        }
+      }
+
+
+function modifyGameState() {
+  //spawn car
+  if(gameState.carMode && !gameState.carSpawned) {
+    gameState.globalPositions.carPosition.position = gameState.globalPositions.playerPosition.position;
+    gameState.globalPositions.playerPosition.remove();
+    project.activeLayer.addChild(gameState.globalPositions.carPosition);
+    gameState.carSpawned = true;
+    gameState.playerSpawned = false;
+  }
+  //spawn player
+  if(!gameState.playerSpawned && !gameState.carMode) {
+    project.activeLayer.addChild(gameState.globalPositions.playerPosition);
+    gameState.globalPositions.playerPosition.position = gameState.globalPositions.carPosition.position;
+    gameState.playerSpawned = true;
+    gameState.globalPositions.carPosition.remove();
+    gameState.carSpawned = false;
+  };
+  //spawn zombies with increasing difficulty
+  if(gameState.curZombieCount <  gameState.maxZombies / 4 ) {
+    gameState.curZombieCount+=2;
+    gameState.zombieSpeed+=.1;
+    Zombies.spawnZombies();
+  };
+  //track gas tank collection
+  if(gameState.gasTanksCollected >= 3){
+    gameState.carMode = true;
+    meter.opacity = 1;
+    textGroup.opacity = 1;
+    gameState.playerSpawned = false;
+    gameState.gasTanksCollected = 0;
+  }
+  //when the fuel tank indicator slides too far off screen reset it and turn off car mode
+  if(gameState.carMode){
+    meter.segments[2].point.x-=.5;
+    meter.segments[3].point.x-=.5;
+      if(meter.position.x <=40) {
+        gameState.carMode = false;
+        meter.opacity = 0;
+        textGroup.opacity = 0;
+      }
+    }
+  }
+
+
+var meter = new Path.Rectangle({
+    from: [40,10],
+    to: [400, 40],
+    fillColor: 'blue',
+    opacity: 0
+  });
+
+var text = new PointText(new Point(23, 30));
+text.fillColor = 'black';
+text.content = 'E';
+text.fontSize = 20;
+var textFull = new PointText(new Point(404, 30));
+textFull.content = 'F';
+textFull.fontSize = 20;
+
+var textGroup = new Group([text, textFull]);
+textGroup.opacity = 0;
+
+
+setInterval(function(){
+  if((!gameState.carMode) && (gameState.pathArrays.arrayOfGasTanks.length < 2)){
+    var gasTank = new Path.Circle((new Point.random() * gameState.maxPoint), 12);
+    gasTank.fillColor = 'red';
+    gameState.pathArrays.arrayOfGasTanks.push(gasTank);
+  }
+}, 8000)
+
+
+//Game Pieces and Functions
+    var Car = new function() {
+    	var center = gameState.center;
+      //assemble the car
+      var rectangle = new Rectangle(new Point(50, 50), new Point(150, 100));
+      var cornerSize = new Size(20, 20);
+      var carBody = new Path.RoundRectangle(rectangle, cornerSize);
+      carBody.fillColor = 'orange';
+      carBody.strokeColor = 'black';
+      //construct the windshield via Rectangle constructors
+      var newRectangle = new Rectangle(70,59,8,30);
+      var cornerSize = new Size(0, 20);
+      var windshieldBack = new Path.RoundRectangle(newRectangle, cornerSize);
+          windshieldBack.fillColor = 'black';
+          windshieldBack.segments[2].point.x-=10;
+          windshieldBack.segments[1].point.x-=10;
+          windshieldFront = windshieldBack.clone();
+          windshieldFront.position.x+=50
+          windshieldFront.rotate(180);
+          windshieldFront.scale(1.2);
+      var door1 = new Path([84, 97], [82, 90], [110, 95]);
+          door1.closed = true;
+          door1.fillColor = 'black';
+          door1.segments[1].smooth();
+          door1.segments[2].smooth();
+      var door2 = door1.clone();
+          door2.position.y-=37;
+          door2.scale(1,-1);
+
+          var headlight = new Path.Arc({
+              from: carBody.segments[4].point,
+              through: [149, 65],
+              to: carBody.segments[5].point,
+              strokeColor: 'black',
+          	fillColor: 'grey',
+          	closed: true
+          });
+          var headlight2 = headlight.clone();
+          headlight2.position.y +=30;
+          headlight2.scale(-1,1);
+          headlight2.rotate(180)
+      //finally, we constructed the car and put it into a group
+      var carGroup = new Group([carBody, door1, door2, windshieldFront, windshieldBack, headlight, headlight2]);
+    	carGroup.strokeColor = 'black';
+      //Define constants which control car movements
+    	var vector = new Point({
+    		angle: 0,
+    		length: 20
+    	});
+      carGroup.vector = vector;
+    	var speed = 1;
+    	var maxSteer = 4.5;
+      var friction = 0.98;
+    	var steering = 1;
+    	var maxSpeed = 10;
+    	var minSpeed = 1;
+    	var position = center;
+    	var lastRotation = 0;
+    	var count = 0;
+      //remove it from the active layer until 3 gas tanks are collected
+      carGroup.remove();
+    	return {
+    		left: function() {
+    			if (speed >= 0.01) {
+    				if (speed < 3 && speed >= 0) {
+    					vector.angle -= (speed * 2);
+    				} else if (speed < 0) {
+    					vector.angle -= (speed / 2);
+    				} else {
+    					vector.angle -= maxSteer * steering;
+    				}
+    				speed *= friction;
+    			}
+    		},
+
+    		right: function() {
+    			if (speed >= 0.01) {
+    				if (speed < 3 && speed >= 0) {
+    					vector.angle += (speed * 2);
+    				} else if (speed < 0) {
+    					vector.angle += (speed / 2);
+    				} else {
+    					vector.angle += maxSteer * steering;
+    				}
+    				speed *= friction;
+    			}
+    		},
+
+    		forward: function() {
+    			speed += 0.3;
+    			speed = Math.min(maxSpeed, speed);
+    		},
+
+    		reverse: function() {
+    			speed -= 0.3;
+    			if (speed < minSpeed)
+    				speed = minSpeed;
+    		},
+
+    		draw: function() {
+          //update car position, angle, and speed onFrame
+    			var vec = vector.normalize(Math.abs(speed));
+    			speed = speed * friction;
+    			position += vec;
+    			var lastPoint = carGroup.position = position;
+    			var lastVector = vec;
+          var rotation = vector.angle;
+          carGroup.position = position;
+          carGroup.rotate(rotation - lastRotation);
+          lastRotation = rotation;
+    			constrain(carGroup, position);
+          gameState.globalPositions.carPosition = carGroup;
+          gameState.carSpeed = speed;
+    		}
+      }
+    }
+
+//Spawn zombies and detect collisions with player and bullets and car
+var Zombies = new function() {
+  //Construct the zombies
+  var zombie = new Path.Circle({
+      x: 200,
+      y: 200,
+      radius: 12,
+      fillColor: '#9ef799',
+      strokeColor: 'black',
+      shadowColor: new Color(0, 0, 0),
+      shadowBlur: 12,
+      shadowOffset: new Point(0, 5)
+  })
+  var eye = new Path.Ellipse({
+      point: [203, 202],
+      size: [5, 4],
+      fillColor: 'white',
+      strokeColor: 'grey'
+  });
+    var eye2 = eye.clone()
+        eye2.position.x-=11;
+
+  var mouth = eye.clone();
+      mouth.position.x-=5.5;
+      mouth.position.y+=5.5;
+      mouth.scale(1.3)
+      mouth.fillColor = 'red';
+//Add zombie to group
+  var zombieGroup = new Group([zombie, eye,eye2,mouth]);
+  var headPath = zombieGroup;
+  var headSymbol = new Symbol(headPath);
+  var vector = new Point({
+        angle: 0,
+        length: 20
+      });
+      return {
+        moveZombies: function() {
+
+          gameState.pathArrays.arrayOfZombies.forEach(function(zombie, i){
+                      if(zombie.bounds.width <= 25) {
+                        zombie.scale(1.05);
+                      }
+            else {
+            zombie.position+=zombie.vector.normalize(Math.min(gameState.zombieSpeed, gameState.maxZombieSpeed));
+            constrain(zombie, zombie.position);
+            if(gameState.carMode){
+            detectCollision(zombie, i);
+          };
+            if(!gameState.carMode && !gameState.gameOver){
+            chasePlayer(zombie,i);
+            attemptToKillPlayer(zombie,i);
+          }
+        }});
+          explodeBits(gameState.pathArrays.groupOfZombieGuts);
+          removeOldestBloodSplatter();
+
+        },
+        spawnZombies: function() {
+          for(i=0; i< gameState.curZombieCount; i++) {
+            var randomPoint = new Point.random();
+            var point = gameState.maxPoint * randomPoint;
+            var zombie = headSymbol.place(new Point(point));
+            zombie.vector = new Point({
+              angle: Math.random() * 360,
+              length: Math.random() * 1 + .3
+            });
+
+              zombie.rotate(zombie.vector.angle - 90);
+              zombie.scale(.1);
+             gameState.pathArrays.arrayOfZombies.push(zombie);
+        }
+      }
+    }
+}
+//Player
+
+var Player = new function() {
+  var player = new Path.Circle({
+    x: view.center.x,
+    y: view.center.y,
+    radius: 12,
+    fillColor: 'blue',
+    strokeColor: 'black'
+  });
+//draw player and set rotation to 90 to compensate for the drawn arm
+  var lastRotation = 90;
+  var position = view.center;
+  var from = player.segments[0].point;
+  var toX = from.x;
+  var toY = from.y +10;
+  var to = [toX, toY];
+  var arm = new Path.Line(from,to);
+  arm.strokeColor = 'black';
+  arm.strokeWidth = 4;
+  arm.strokeCap = 'round';
+  var group = new Group([player, arm]);
+
+  return {
+    left: function() {
+      group.position.x -=2;
+    },
+
+    right: function() {
+      group.position.x+=2;
+    },
+
+    forward: function() {
+      group.position.y-=2;
+    },
+
+    reverse: function() {
+      group.position.y+=2;
+    },
+    rotate: function(event){
+      var mousePoint = event.point;
+      var mouseVector = mousePoint - group.position;
+      group.rotate(mouseVector.angle - lastRotation);
+      lastRotation = mouseVector.angle;
+    },
+    fire: function(event){
+      var playerHand = arm.lastSegment.point;
+      var fireVector = playerHand - event.point;
+      var newGunshot = createBlob(playerHand, 5, 8, 'orange');
+      newGunshot.position-=fireVector.normalize(8.5);
+      setTimeout(function(){
+        newGunshot.remove();
+      },30);
+      var bulletTrajectory = new Path.Line({
+               from: playerHand,
+               to: playerHand - fireVector.normalize(10),
+           });
+           bulletTrajectory.strokeWidth = 2;
+           bulletTrajectory.vector = fireVector;
+           bulletTrajectory.strokeColor = 'black';
+           gameState.pathArrays.arrayOfBullets.push(bulletTrajectory);
+
+    },
+    updatePlayerPositionGlobally: function() {
+    gameState.globalPositions.playerPosition = group;
+    constrain(group, group.position);
+    gameState.pathArrays.arrayOfGasTanks.forEach(function(tank,i){
+      if(tank.bounds.intersects(group.bounds)){
+        tank.remove();
+        gameState.pathArrays.arrayOfGasTanks.splice(i,1);
+        gameState.gasTanksCollected+=1;
+      }
+    })
+    }
+}
+}
+
+
+//global functions
+function constrain(path, position) {
+  var position = position;
+  var bounds = path.bounds;
+  var size = view.size;
+  if (!bounds.intersects(view.bounds)) {
+    if (position.x < -bounds.width)
+      position.x = size.width + bounds.width;
+    if (position.y < -bounds.height)
+      position.y = size.height + bounds.height;
+    if (position.x > size.width + bounds.width)
+      position.x = -bounds.width;
+    if (position.y > size.height + bounds.height)
+      position.y = -bounds.height;
+    path.position = position;
+
+  }
+}
+
+function killZombie(zombie,i){
+  var bloodSplat = createBlob(zombie.position, 20, 20).sendToBack();
+  gameState.pathArrays.arrayOfBloodSplatters.push(bloodSplat);
+  gameState.pathArrays.arrayOfZombies.splice(i, 1);
+  zombie.remove();
+  for(var i = 0; i < 3; i++) {
+    var zombieChunks = bloodSplat.clone().scale(.8);
+     zombieChunks.vector = new Point({
+       angle: 360 * Math.random(),
+       length: 3
+     });
+    gameState.pathArrays.groupOfZombieGuts.addChild(zombieChunks);
+  }
+  gameState.curZombieCount--;
+  gameState.score+=25;
+  score.innerHTML = gameState.score;
+
+}
+function detectCollision(zombie, i) {
+    if(zombie.bounds.intersects(gameState.globalPositions.carPosition.bounds)) {
+      if(gameState.carSpeed > 5) {
+          killZombie(zombie,i)
+    } else {
+        zombie.position -= zombie.vector;
+        if(gameState.globalPositions.carPosition.contains(zombie.position)){
+          zombie.position += gameState.globalPositions.carPosition.vector /10;
+        };
+       }
+     }
+
+    }
+
+    function explodeBits(groupOfZombieGuts) {
+      groupOfZombieGuts.children.forEach(function(chunks,i){
+        chunks.sendToBack();
+        chunks.scale(.9);
+        chunks.rotate(3);
+        chunks.position+=chunks.vector.normalize(5);
+        chunks.fillColor = '#9ef799';
+        if(chunks.area < 1) {
+          chunks.remove();
+        groupOfZombieGuts.children.splice(i,1);
+      }
+      });
+
+    }
+
+
+function createBlob(center, maxRadius, radius) {
+  var blob = new Path();
+  blob.closed = true;
+  for(var i = 0; i< 20; i++) {
+    var delta = new Point({
+      length: (maxRadius * .5) + Math.random() * maxRadius * .5,
+      angle: (360/20) *i
+    });
+    blob.add(center + delta)
+  }
+  blob.smooth();
+  blob.fillColor = 'red';
+  blob.sendToBack();
+  return blob
+}
+
+function removeOldestBloodSplatter() {
+  if(gameState.pathArrays.arrayOfBloodSplatters.length > 10) {
+  gameState.pathArrays.arrayOfBloodSplatters.forEach(function(splatter,i){
+    if(i === 0){
+    splatter.opacity =  splatter.opacity / 1.1;
+  }
+    if(splatter.opacity < .3) {
+      splatter.remove();
+      gameState.pathArrays.arrayOfBloodSplatters.splice(0,1);
+    }
+        });
+
+  }
+}
+
+function detectBulletHit() {
+    gameState.pathArrays.arrayOfBullets.forEach(function(bullet,i){
+      var bulletIndex = i;
+        bullet.position-=bullet.vector.normalize(25) * 2;
+        if(gameState.pathArrays.arrayOfBullets.length > 0) {
+            gameState.pathArrays.arrayOfZombies.forEach(function(zombie,i){
+              if(bullet.strokeBounds.intersects(zombie.bounds)){
+                  bullet.remove();
+                killZombie(zombie,i);
+                gameState.pathArrays.arrayOfBullets.splice(bulletIndex,1);
+              };
+            });
+            if(!bullet.bounds.intersects(view.bounds)){
+                bullet.remove();
+              gameState.pathArrays.arrayOfBullets.splice(i,1);
+            };
+    };
+  })
+
+}
+
+function chasePlayer(zombie, i) {
+   var lastRotation2 = zombie.vector.angle;
+        zombiePlayerVector = zombie.position - gameState.globalPositions.playerPosition.position;
+        vectorLength = zombiePlayerVector.length;
+       if((vectorLength <= 250) && (zombie.vector.angle !== zombiePlayerVector.angle)) {
+           zombie.vector.angle = zombiePlayerVector.angle + 180;
+
+      zombie.rotate(zombie.vector.angle - lastRotation2);
+       }
+}
+function attemptToKillPlayer(zombie, i) {
+  var player = gameState.globalPositions.playerPosition
+  if(zombie.bounds.intersects(player.bounds) && !gameState.gameOver){
+    killZombie(player);
+    gameOver.style.display = 'block';
+    gameState.gameOver = true;
+  }
+
+}
+
+//control the score and off-canvas elements
+
+var score = document.querySelector('#score-number');
+
+var gameOver = document.querySelector('#game-over');
+
+</script>
+</head>
+<body>
+    <div class="header">
+      <div class="score">
+        <p>Score: <span id="score-number">0</span></p>
+      </div>
+    </div>
+
+    <a href="zombiesPlusCarCOPYCHECKPOINT2.html"<div id="game-over">
+
+      Game Over
+      <p>Click anywhere to play again</p>
+    </div>
+  </a>
+<canvas id="myCanvas" resize="true"></canvas>
+<footer>
+  <h4>Use the W-A-S-D keys to move. Mouse to fire. Collect gas tanks for your car and kill as many zombies as you can!</h4>
+  <h4>Made by Ryan Lambert with the incredible Paper.js</h4>
+</footer>
+</body>
+</html>

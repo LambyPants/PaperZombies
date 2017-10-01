@@ -1,0 +1,62 @@
+canvas {
+  width: 100%;
+  height: 80%;
+  background: white;
+  transition: all ease 1s;
+}
+
+body, html {
+  margin: 0;
+  overflow: hidden;
+  height: 100%;
+  margin: 0;
+  font-family: 'Creepster', cursive;
+}
+
+.header {
+  width: 100%;
+  height: 10%;
+
+}
+.score {
+  position: absolute;
+  right: 2%;
+  top: 0;
+  font-size: 3.0em;
+}
+
+#game-over {
+  display: none;
+  font-size: 10.0em;
+transition: all 3s ease-in-out;
+  color: #e21414;
+  position: absolute;
+  top: 30%;
+  left: 30%;
+  cursor: pointer;
+}
+#game-over p {
+  text-align: center;
+  font-size: 20px;
+}
+
+a {
+  text-decoration: none;
+}
+
+footer {
+  font-family: 'Exo', sans-serif;
+  position:absolute;
+   bottom:0;
+   color:#ff0000;
+   background-color: #7a1b1b;
+   text-align: center;
+   color:#ddd;
+   width: 100%
+}
+
+footer h4 {
+    display: inline;
+    color: white;
+    padding: 2px 4px;
+}
