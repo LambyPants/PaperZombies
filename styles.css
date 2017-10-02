@@ -24,6 +24,20 @@ body, html {
   font-size: 3.0em;
 }
 
+.score p {
+  margin: 0;
+  text-align: center;
+}
+
+#gas-tanks {
+  margin: 0;
+  font-size: .5em;
+  padding: 0 4px;
+  list-style: none;
+}
+#gas-tanks li {
+  display: inline;
+}
 #game-over {
   display: none;
   font-size: 10.0em;
@@ -32,7 +46,6 @@ transition: all 3s ease-in-out;
   position: absolute;
   top: 30%;
   left: 30%;
-  cursor: pointer;
 }
 #game-over p {
   text-align: center;
@@ -59,4 +72,8 @@ footer h4 {
     display: inline;
     color: white;
     padding: 2px 4px;
+}
+
+footer a {
+  color: cornflowerblue;
 }

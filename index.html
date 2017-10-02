@@ -89,6 +89,9 @@ function modifyGameState() {
     project.activeLayer.addChild(gameState.globalPositions.carPosition);
     gameState.carSpawned = true;
     gameState.playerSpawned = false;
+    for(var i =0; i< gasTankImageArray.length; i++){
+      gasTankImageArray[i].src = "gasempty.png";
+    }
   }
   //spawn player
   if(!gameState.playerSpawned && !gameState.carMode) {
@@ -97,6 +100,8 @@ function modifyGameState() {
     gameState.playerSpawned = true;
     gameState.globalPositions.carPosition.remove();
     gameState.carSpawned = false;
+    meter.segments[2].point.x=400;
+    meter.segments[3].point.x=400;
   };
   //spawn zombies with increasing difficulty
   if(gameState.curZombieCount <  gameState.maxZombies / 4 ) {
@@ -146,11 +151,31 @@ textGroup.opacity = 0;
 
 setInterval(function(){
   if((!gameState.carMode) && (gameState.pathArrays.arrayOfGasTanks.length < 2)){
-    var gasTank = new Path.Circle((new Point.random() * gameState.maxPoint), 12);
-    gasTank.fillColor = 'red';
+    //draw the gas tanks and add them to the gamestate array
+    var gasBody = new Rectangle(new Point(30,10), new Point(60,40));
+    var cornerSize = new Size(10, 10);
+    var path = new Path.RoundRectangle(gasBody, cornerSize);
+    path.fillColor = 'red';
+    path.strokeColor = 'black';
+    path.segments[3].point-=4;
+    path.shadowColor = new Color(0, 0, 0);
+    path.shadowBlur = 10;
+    path.shadowOffset = new Point(0, 5);
+    var gasLine1 = new Path([35, 15], [55, 35]);
+    gasLine1.strokeColor = 'black';
+    var gasLine2 = gasLine1.clone();
+    gasLine2.rotate(90);
+    var gasCap = path.clone();
+    gasCap.scale(.23);
+    gasCap.fillColor = 'black'
+    gasCap.selected = false;
+    gasCap.position = {x: 57, y: 12};
+    var gasTank = new Group([path, gasLine1, gasLine2, gasCap]);
+    gasTank.position = gameState.maxPoint * new Point.random();
+    var counter = 0;
     gameState.pathArrays.arrayOfGasTanks.push(gasTank);
   }
-}, 8000)
+}, 80)
 
 
 //Game Pieces and Functions
@@ -410,11 +435,13 @@ var Player = new function() {
     updatePlayerPositionGlobally: function() {
     gameState.globalPositions.playerPosition = group;
     constrain(group, group.position);
+    //collect the gas tank if the player crosses its path
     gameState.pathArrays.arrayOfGasTanks.forEach(function(tank,i){
       if(tank.bounds.intersects(group.bounds)){
         tank.remove();
         gameState.pathArrays.arrayOfGasTanks.splice(i,1);
         gameState.gasTanksCollected+=1;
+        gasTankImageArray[gameState.gasTanksCollected - 1].src="gasfull.png";
       }
     })
     }
@@ -567,25 +594,33 @@ var score = document.querySelector('#score-number');
 
 var gameOver = document.querySelector('#game-over');
 
+var gasTankImageArray = document.querySelector('#gas-tanks').getElementsByTagName('img');
+
+
+
 </script>
 </head>
 <body>
     <div class="header">
       <div class="score">
         <p>Score: <span id="score-number">0</span></p>
+        <ul id="gas-tanks">
+          <li><img src="gasempty.png"/></li>
+          <li><img src="gasempty.png"/></li>
+          <li><img src="gasempty.png"/></li>
+        </ul>
       </div>
     </div>
 
-    <a href="index.html"<div id="game-over">
-
+<div id="game-over">
       Game Over
-      <p>Click anywhere to play again</p>
+      <p>Click <a href="index.html">HERE</a> to play again</p>
     </div>
-  </a>
+
 <canvas id="myCanvas" resize="true"></canvas>
 <footer>
   <h4>Use the W-A-S-D keys to move. Mouse to fire. Collect gas tanks for your car and kill as many zombies as you can!</h4>
-  <h4>Made by Ryan Lambert with the incredible Paper.js</h4>
+  <h4>Made by <a href="http://www.ryanlandonlambert.com">Ryan Lambert</a> with the incredible Paper.js. Check out the code on <a href="https://github.com/LambyPants/PaperZombies">Github</a></h4>
 </footer>
 </body>
 </html>
