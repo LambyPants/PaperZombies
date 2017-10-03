@@ -26,7 +26,7 @@
     curZombieCount: 0,
     maxZombies: 5,
     zombieSpeed: 0,
-    maxZombieSpeed: 2,
+    maxZombieSpeed: 1.7,
     pathArrays: {
       arrayOfZombies: [],
       arrayOfBullets: [],
@@ -41,7 +41,8 @@
     carSpeed: "",
     center: view.center,
     score: 0,
-    gasTanksCollected: 0
+    gasTanksCollected: 0,
+    animationCounter: 0
   }
 
 
@@ -74,6 +75,7 @@
           Car.draw();
         }
           Zombies.moveZombies();
+          animateGasTanks();
           if(!gameState.carMode){
           Player.updatePlayerPositionGlobally();
           detectBulletHit();
@@ -90,6 +92,7 @@ function modifyGameState() {
     gameState.carSpawned = true;
     gameState.playerSpawned = false;
     for(var i =0; i< gasTankImageArray.length; i++){
+      //the gasIcon is drawn in game - I use a screenshot of the icon for use outside of the canvas
       gasTankImageArray[i].src = "gasempty.png";
     }
   }
@@ -129,7 +132,7 @@ function modifyGameState() {
     }
   }
 
-
+//draw the gas tank meter and hide it until car mode is activated
 var meter = new Path.Rectangle({
     from: [40,10],
     to: [400, 40],
@@ -139,14 +142,29 @@ var meter = new Path.Rectangle({
 
 var text = new PointText(new Point(23, 30));
 text.fillColor = 'black';
+text.fontFamily = 'Creepster';
 text.content = 'E';
 text.fontSize = 20;
 var textFull = new PointText(new Point(404, 30));
 textFull.content = 'F';
+textFull.fontFamily = 'Creepster';
 textFull.fontSize = 20;
 
 var textGroup = new Group([text, textFull]);
 textGroup.opacity = 0;
+
+//instruction text
+
+var instructions = new PointText(view.center);
+instructions.content = 'W-A-S-D to move! Mouse to Shoot! Kill Zombies. Collect Gas Tanks.'
+instructions.fontSize = 50;
+instructions.justification = 'center';
+
+instructions.fontFamily ='Creepster';
+setTimeout(function(){
+  instructions.opacity = 0;
+}, 5000);
+
 
 
 setInterval(function(){
@@ -177,6 +195,19 @@ setInterval(function(){
   }
 }, 8000)
 
+function animateGasTanks() {
+  gameState.pathArrays.arrayOfGasTanks.forEach(function(tank){
+      gameState.animationCounter++;
+    if(gameState.animationCounter < 60){
+      tank.position.y-=.2;
+    } else if(gameState.animationCounter > 61) {
+      tank.position.y+=.2;
+    }
+      if(gameState.animationCounter > 121 ) {
+        gameState.animationCounter = 0;
+      }
+  });
+}
 
 //Game Pieces and Functions
     var Car = new function() {
