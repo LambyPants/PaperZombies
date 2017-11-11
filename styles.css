@@ -1,7 +1,8 @@
 canvas {
   width: 100%;
-  height: 80%;
-  background: white;
+  height: 100%;
+  background: url('cementbackground.jpg');
+  background-size: cover;
   transition: all ease 1s;
 }
 
