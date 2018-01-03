@@ -14,35 +14,61 @@
 
     <script type="text/paperscript" canvas="myCanvas">
 
-//Welcome to PaperZombies! As a Paper.js drawing experiment, no outside SVG images were used, and every shape is drawn in project
+//Welcome to PaperZombies! As a Paper.js drawing experiment, no outside SVG images were used, and every shape is drawn in project.
 
 //Global variables used by entire game
+var weapons = {
+  pistol: {
+    fireRate: 1000,
+    damage: 1000,
+    speed: 1,
+    numberOfBullets: 1,
+    maxDistance: 100
+  },
+  shotgun: {
+    fireRate: 2000,
+    damage: 5000,
+    speed: .5,
+    numberOfBullets: 5,
+    maxDistance: 10
+  }
+}
   var gameState = {
     gameOver: false,
     carMode: false,
     carSpawned: false,
     playerSpawned: true,
     maxPoint: new Point(view.size.width, view.size.height),
-    curZombieCount: 0,
-    maxZombies: 5,
+    playerLives: 3,
+    invulernable: true,
+    curZombieCount: 1,
+    maxZombies: 3,
+    maxGameZombies: 100,
     zombieSpeed: 0,
+    speedZombieSpeed: 1.8,
     maxZombieSpeed: 1.7,
+    hulkZombieHealth: 5,
+    speedZombieMax: 5,
+    hulkZombieMax: 8,
     pathArrays: {
       arrayOfZombies: [],
       arrayOfBullets: [],
       arrayOfBloodSplatters: [],
       arrayOfGasTanks: [],
-      groupOfZombieGuts: new Group()
+      groupOfZombieGuts: new Group(),
+      grenadeArray: [],
     },
     globalPositions: {
       playerPosition: view.center,
       carPosition: view.center,
+      tempMousePosition: view.center
     },
     carSpeed: "",
     center: view.center,
     score: 0,
     gasTanksCollected: 0,
-    animationCounter: 0
+    animationCounter: 0,
+    weapon: 'pistol'
   }
 
 
@@ -50,10 +76,22 @@
     onMouseMove = function(event) {
       if(!gameState.carMode && !gameState.gameOver){
           Player.rotate(event);
+          gameState.globalPositions.tempMousePosition = event.point;
       }}
       onMouseDown = function(event) {
         if(!gameState.carMode && !gameState.gameOver){
           Player.fire(event);
+      }
+    }
+    function onKeyDown(event) {
+        if(!gameState.carMode && !gameState.gameOver){
+          if(event.key === 'g') {
+          Player.throwGrenade();
+        }
+          if(event.key === '2') {
+
+          gameState.weapon = 'shotgun';
+        }
       }
     }
 
@@ -70,6 +108,7 @@
 
       if (Key.isDown('s')){
         if(!gameState.carMode){Player.reverse()} else {Car.reverse()}};
+
           modifyGameState();
           if(gameState.carMode){
           Car.draw();
@@ -78,6 +117,7 @@
           animateGasTanks();
           if(!gameState.carMode){
           Player.updatePlayerPositionGlobally();
+          Player.animateGrenade();
           detectBulletHit();
         }
       }
@@ -106,11 +146,13 @@ function modifyGameState() {
     meter.segments[2].point.x=400;
     meter.segments[3].point.x=400;
   };
+
   //spawn zombies with increasing difficulty
-  if(gameState.curZombieCount <  gameState.maxZombies / 4 ) {
-    gameState.curZombieCount+=2;
+  if(gameState.curZombieCount <  gameState.maxZombies) {
+    gameState.maxZombies = Math.min(gameState.maxGameZombies, gameState.curZombieCount+2);
     gameState.zombieSpeed+=.1;
     Zombies.spawnZombies();
+    gameState.curZombieCount = gameState.pathArrays.arrayOfZombies.length;
   };
   //track gas tank collection
   if(gameState.gasTanksCollected >= 3){
@@ -339,6 +381,7 @@ var Zombies = new function() {
       shadowBlur: 12,
       shadowOffset: new Point(0, 5)
   })
+
   var eye = new Path.Ellipse({
       point: [203, 202],
       size: [5, 4],
@@ -361,15 +404,51 @@ var Zombies = new function() {
         angle: 0,
         length: 20
       });
+//Modify Zombie Group to Create 'Speed Zombies', a new enemy type in v1.1 of the game
+var speedZombie = new Path.Circle({
+      x: 200,
+      y: 200,
+      radius: 12,
+      fillColor: 'red',
+      strokeColor: 'black',
+      shadowColor: new Color(0, 0, 0),
+      shadowBlur: 12,
+      shadowOffset: new Point(0, 5),
+      type: 'speed'
+  });
+  var speedEye = new Path.Ellipse({
+      point: [203, 202],
+      size: [5, 4],
+      fillColor: 'white',
+      strokeColor: 'grey'
+  });
+  var speedEye2 =  speedEye.clone()
+      speedEye2.position.x-=11;
+
+var speedMouth = speedEye.clone();
+    speedMouth.position.x-=5.5;
+    speedMouth.position.y+=5.5;
+    speedMouth.scale(1.3)
+    speedMouth.fillColor = 'white';
+
+var speedZombieGroup = new Group([speedZombie, speedEye, speedEye2, speedMouth]);
+var speedSymbol = new Symbol(speedZombieGroup);
+
+//add a Hulk zombie which has more health; because it needs to change color on bullet impact, we aren't going to use a symbol
+
       return {
         moveZombies: function() {
-
           gameState.pathArrays.arrayOfZombies.forEach(function(zombie, i){
                       if(zombie.bounds.width <= 25) {
-                        zombie.scale(1.05);
+                        zombie.scale(1.04);
                       }
             else {
             zombie.position+=zombie.vector.normalize(Math.min(gameState.zombieSpeed, gameState.maxZombieSpeed));
+            if(zombie.type === 'speed'){
+              zombie.position+=zombie.vector.normalize((gameState.speedZombieSpeed));
+            } else if(zombie.type === 'hulk'){
+              zombie.position+=zombie.vector.normalize(Math.min(gameState.zombieSpeed * .5, gameState.maxZombieSpeed * .5))
+            }
             constrain(zombie, zombie.position);
             if(gameState.carMode){
             detectCollision(zombie, i);
@@ -384,10 +463,11 @@ var Zombies = new function() {
 
         },
         spawnZombies: function() {
-          for(i=0; i< gameState.curZombieCount; i++) {
+          for(i=0; i< gameState.maxZombies; i++) {
             var randomPoint = new Point.random();
             var point = gameState.maxPoint * randomPoint;
             var zombie = headSymbol.place(new Point(point));
+
             zombie.vector = new Point({
               angle: Math.random() * 360,
               length: Math.random() * 1 + .3
@@ -395,12 +475,64 @@ var Zombies = new function() {
 
               zombie.rotate(zombie.vector.angle - 90);
               zombie.scale(.1);
+
              gameState.pathArrays.arrayOfZombies.push(zombie);
+             if((i % 4 === 0) && (i !== 0)) {
+               var speedZombie = speedSymbol.place(new Point(point));
+               speedZombie.vector = new Point({
+                 angle: Math.random() * 360,
+                 length: Math.random() * 1 + .3
+               });
+               speedZombie.type = 'speed';
+               speedZombie.scale(.1);
+           speedZombie.rotate(speedZombie.vector.angle - 90);
+          gameState.pathArrays.arrayOfZombies.push(speedZombie);
+             }
+             if((i % 6 === 0) && (i !== 0)) {
+               var hulkZombieBody = new Path.Circle({
+                     x: 200,
+                     y: 200,
+                     radius: 12,
+                     fillColor: 'grey',
+                     strokeColor: 'black',
+                     shadowColor: new Color(0, 0, 0),
+                     shadowBlur: 12,
+                     shadowOffset: new Point(0, 5),
+                     type: 'hulk'
+                 });
+                 var hulkEye = new Path.Ellipse({
+                     point: [203, 202],
+                     size: [5, 4],
+                     fillColor: 'orange',
+                     strokeColor: 'black'
+                 });
+                 var hulkEye2 =  hulkEye.clone()
+                     hulkEye2.position.x-=11;
+
+               var hulkMouth = hulkEye.clone();
+                   hulkMouth.position.x-=5.5;
+                   hulkMouth.position.y+=5.5;
+                   hulkMouth.scale(1.3)
+                   hulkMouth.fillColor = 'purple';
+
+               var hulkZombieGroup = new Group([hulkZombieBody, hulkEye, hulkEye2, hulkMouth]);
+
+          var hulkZombie = hulkZombieGroup.scale(.1);
+               hulkZombie.position = point;
+               hulkZombie.vector = new Point({
+                 angle: Math.random() * 360,
+                 length: Math.random() * 1 + .3
+               });
+               hulkZombie.type = 'hulk';
+               hulkZombie.health = gameState.hulkZombieHealth;
+           hulkZombie.rotate(hulkZombie.vector.angle - 90);
+          gameState.pathArrays.arrayOfZombies.push(hulkZombie);
+             }
         }
       }
     }
 }
-//Player
+//Player`
 
 var Player = new function() {
   var player = new Path.Circle({
@@ -422,6 +554,7 @@ var Player = new function() {
   arm.strokeWidth = 4;
   arm.strokeCap = 'round';
   var group = new Group([player, arm]);
+
 
   return {
     left: function() {
@@ -446,22 +579,60 @@ var Player = new function() {
       lastRotation = mouseVector.angle;
     },
     fire: function(event){
+      var weapons = {
+        pistol: {
+          fireRate: 1000,
+          damage: 1000,
+          speed: 1,
+          numberOfBullets: 1,
+          maxDistance: 100,
+          magSize: false
+        },
+        shotgun: {
+          fireRate: 2000,
+          damage: 5000,
+          speed: .5,
+          numberOfBullets: 5,
+          maxDistance: 10,
+          magSize: 12
+        }
+      }
+
       var playerHand = arm.lastSegment.point;
       var fireVector = playerHand - event.point;
       var newGunshot = createBlob(playerHand, 5, 8, 'orange');
       newGunshot.position-=fireVector.normalize(8.5);
+      //remove explosion effect of gun barrel
       setTimeout(function(){
         newGunshot.remove();
       },30);
       var bulletTrajectory = new Path.Line({
                from: playerHand,
                to: playerHand - fireVector.normalize(10),
+               strokeWidth: 1,
+               strokeColor: 'black',
+               vector: fireVector
            });
-           bulletTrajectory.strokeWidth = 2;
-           bulletTrajectory.vector = fireVector;
-           bulletTrajectory.strokeColor = 'black';
+           console.log(weapons[gameState.weapon])
+           if(weapons[gameState.weapon].numberOfBullets > 1) {
+             for(i=0; i < 5; i++) {
+               var additionalBullet = bulletTrajectory.clone();
+
+               additionalBullet.position.x+= Math.random() *50;
+               additionalBullet.vector = fireVector;
+               gameState.pathArrays.arrayOfBullets.push(additionalBullet);
+             }
+           }
            gameState.pathArrays.arrayOfBullets.push(bulletTrajectory);
 
+    },
+    throwGrenade: function(){
+      var secondHand = player.segments[2].point;
+      var grenadeVector = gameState.globalPositions.tempMousePosition - secondHand;
+      var grenade = new Path.Circle(secondHand, 5);
+      grenade.fillColor = 'green';
+      grenade.vector = grenadeVector;
+      gameState.pathArrays.grenadeArray.push(grenade);
     },
     updatePlayerPositionGlobally: function() {
     gameState.globalPositions.playerPosition = group;
@@ -475,7 +646,14 @@ var Player = new function() {
         gasTankImageArray[gameState.gasTanksCollected - 1].src="gasfull.png";
       }
     })
+  },
+  animateGrenade: function() {
+    if(gameState.pathArrays.grenadeArray.length > 0) {
+      gameState.pathArrays.grenadeArray.forEach(function(nade) {
+        nade.position+=nade.vector.normalize(3);
+      });
     }
+  }
 }
 }
 
@@ -517,6 +695,22 @@ function killZombie(zombie,i){
   score.innerHTML = gameState.score;
 
 }
+
+function woundHulkZombie(zombie,i){
+  var bloodSplat = createBlob(zombie.position, 10, 10).sendToBack();
+  gameState.pathArrays.arrayOfBloodSplatters.push(bloodSplat);
+  zombie.health-=1;
+  for(var i = 0; i < 3; i++) {
+    var zombieChunks = bloodSplat.clone().scale(.7);
+     zombieChunks.vector = new Point({
+       angle: 360 * Math.random(),
+       length: 3
+     });
+     zombieChunks.fillColor = 'red';
+      zombieChunks.type = 'hulk';
+    gameState.pathArrays.groupOfZombieGuts.addChild(zombieChunks);
+  }
+}
 function detectCollision(zombie, i) {
     if(zombie.bounds.intersects(gameState.globalPositions.carPosition.bounds)) {
       if(gameState.carSpeed > 5) {
@@ -537,7 +731,7 @@ function detectCollision(zombie, i) {
         chunks.scale(.9);
         chunks.rotate(3);
         chunks.position+=chunks.vector.normalize(5);
-        chunks.fillColor = '#9ef799';
+        chunks.fillColor = chunks.type === 'hulk' ? 'red' : '#9ef799';
         if(chunks.area < 1) {
           chunks.remove();
         groupOfZombieGuts.children.splice(i,1);
@@ -564,7 +758,7 @@ function createBlob(center, maxRadius, radius) {
 }
 
 function removeOldestBloodSplatter() {
-  if(gameState.pathArrays.arrayOfBloodSplatters.length > 10) {
+  if(gameState.pathArrays.arrayOfBloodSplatters.length > 3) {
   gameState.pathArrays.arrayOfBloodSplatters.forEach(function(splatter,i){
     if(i === 0){
     splatter.opacity =  splatter.opacity / 1.1;
@@ -581,19 +775,23 @@ function removeOldestBloodSplatter() {
 function detectBulletHit() {
     gameState.pathArrays.arrayOfBullets.forEach(function(bullet,i){
       var bulletIndex = i;
-        bullet.position-=bullet.vector.normalize(25) * 2;
-        if(gameState.pathArrays.arrayOfBullets.length > 0) {
+        bullet.position-=bullet.vector.normalize(25);
+
             gameState.pathArrays.arrayOfZombies.forEach(function(zombie,i){
-              if(bullet.strokeBounds.intersects(zombie.bounds)){
+              if(bullet.bounds.intersects(zombie.bounds)){
+
                   bullet.remove();
+              if(zombie.health === 0 || zombie.health === undefined){
                 killZombie(zombie,i);
                 gameState.pathArrays.arrayOfBullets.splice(bulletIndex,1);
-              };
+              } else {
+                woundHulkZombie(zombie,i);
+              }
+            };
             });
             if(!bullet.bounds.intersects(view.bounds)){
                 bullet.remove();
               gameState.pathArrays.arrayOfBullets.splice(i,1);
-            };
     };
   })
 
@@ -603,7 +801,7 @@ function chasePlayer(zombie, i) {
    var lastRotation2 = zombie.vector.angle;
         zombiePlayerVector = zombie.position - gameState.globalPositions.playerPosition.position;
         vectorLength = zombiePlayerVector.length;
-       if((vectorLength <= 250) && (zombie.vector.angle !== zombiePlayerVector.angle)) {
+       if((vectorLength <= 250 || (zombie.type === 'speed' && vectorLength <= 1000)) && (zombie.vector.angle !== zombiePlayerVector.angle)) {
            zombie.vector.angle = zombiePlayerVector.angle + 180;
 
       zombie.rotate(zombie.vector.angle - lastRotation2);
