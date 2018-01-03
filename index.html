@@ -83,17 +83,17 @@ var weapons = {
           Player.fire(event);
       }
     }
-    function onKeyDown(event) {
-        if(!gameState.carMode && !gameState.gameOver){
-          if(event.key === 'g') {
-          Player.throwGrenade();
-        }
-          if(event.key === '2') {
-
-          gameState.weapon = 'shotgun';
-        }
-      }
-    }
+    // function onKeyDown(event) {
+    //     if(!gameState.carMode && !gameState.gameOver){
+    //       if(event.key === 'g') {
+    //       Player.throwGrenade();
+    //     }
+    //       if(event.key === '2') {
+    //
+    //       gameState.weapon = 'shotgun';
+    //     }
+    //   }
+    // }
 
     function onFrame() {
 
